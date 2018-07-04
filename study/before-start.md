@@ -55,4 +55,5 @@ Disadvantage: Not many full-featured debugger option, Third-party library error,
 - 한국 Golang Korea 커뮤니티
 
 [Go lang SlideShare](https://www.slideshare.net/100001105751070/go-51748987)
+
 [Python 개발자를 위한 Go](https://www.slideshare.net/leekchan/gophercon-korea-2015-python-go)
