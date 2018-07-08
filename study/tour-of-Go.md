@@ -177,3 +177,76 @@ func main() {
 }
 ```
 you can skip the index or value by assigning to `_`
+
+### Maps
+
+A map maps keys to values.
+
+The zero value of a map is nil. A nil map has no keys, nor can keys be added.
+
+```go
+type Vertex struct {
+	Lat, Long float64
+}
+
+var m map[string]Vertex
+
+func main() {
+	m = make(map[string]Vertex)
+	m["Bell Labs"] = Vertex{
+		40.68433, -74.39967,
+	}
+	fmt.Println(m["Bell Labs"])
+}
+```
+
+#### Map literals
+Map literals are like struct literals, but the keys are required.
+
+```go
+var m = map[string]Vertex{
+	"Bell Labs": Vertex{
+		40.68433, -74.39967,
+	},
+	"Google": Vertex{
+		37.42202, -122.08408,
+	},
+}
+```
+
+### Function
+
+Functions are values too. They can be passed around just like other values.
+
+Function values may be used as function arguments and return values.
+
+
+#### Function closures
+Go functions may be closures. A closure is a function value that references variables from outside its body. The function may access and assign to the referenced variables; in this sense the function is "bound" to the variables.
+
+For example, the adder function returns a closure. Each closure is bound to its own sum variable.
+
+```go
+func adder() func(int) int {
+	sum := 0
+	return func(x int) int {
+		sum += x
+		return sum
+	}
+}
+```
+
+### Methods
+
+Go does not have classes, but you can define **methods** on types
+
+A method is a function with a special *receiver* argument.
+
+```go
+func (v Vertex) Abs() float64 {
+	return math.Sqrt(v.X*v.X + v.Y*v.Y)
+}
+```
+
+In this example, the Abs method has a receiver of type Vertex named v.
+
