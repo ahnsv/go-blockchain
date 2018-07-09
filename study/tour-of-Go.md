@@ -32,7 +32,6 @@ func main() {
 	var z uint = uint(f)
 	fmt.Println(x, y, z) // 3 4 5
 }
-```
 
 ### Type inference
 When declaring a variable without specifying an explicit type (either by using the `:=` syntax or `var =` expression syntax), the variable's type is inferred from the value on the right hand side.
@@ -246,7 +245,355 @@ A method is a function with a special *receiver* argument.
 func (v Vertex) Abs() float64 {
 	return math.Sqrt(v.X*v.X + v.Y*v.Y)
 }
+
+// same as 
+func Abs(v Vertex) float64 {
+	return math.Sqrt(v.X*v.X + v.Y*v.Y)
+}
 ```
 
 In this example, the Abs method has a receiver of type Vertex named v.
 
+You can only declare a method with a receiver whose type is defined in the **same package as the method**. You cannot declare a method with a receiver whose type is defined in another package (which includes the built-in types such as int).
+
+#### Pointer receivers
+```go
+func (v Vertex) Abs() float64 {
+	return math.Sqrt(v.X*v.X + v.Y*v.Y)
+}
+
+func (v *Vertex) Scale(f float64) {
+	v.X = v.X * f
+	v.Y = v.Y * f
+}
+
+func main() {
+	v := Vertex{3, 4}
+	v.Scale(10)
+	fmt.Println(v.Abs()) // 50
+}
+
+// when Scale has a value receiver
+func (v Vertex) Scale(f float64) {
+	v.X = v.X * f
+	v.Y = v.Y * f
+}
+
+// prints out 5 cuz it would operate on a copy of the original vertex value, like any other function arguments
+```
+
+#### Methods and pointer indirection
+
+Whilst functions with a pointer arg must take a pointer, methods with pointer receiver take either a value or a pointer as the receiver
+
+Go interprets the statement `v.Scale(5)` as `(&v)`.
+
+#### Choosing a value or pointer receiver
+
+Why use a pointer receiver?
+
+- the method can modify the value that its receiver points to.
+- to avoid copying the value on each method call. This can be more efficient if the receiver is a large struct, for example.
+- 
+
+### Interfaces
+An interface type is defined as a set of method signatures.
+
+A value of interface type can hold any value that implements those methods.
+
+#### Interfaces are implemented implicitly
+A type implements an interface by implementing its methods. There is no explicit declaration of intent, no "implements" keyword.
+
+Implicit interfaces decouple the definition of an interface from its implementation, which could then appear in any package without prearrangement.
+
+#### Interface values
+Under the covers, interface values can be thought of as a tuple of a value and a concrete type:
+
+`(value, type)`
+
+An interface value holds a value of a specific underlying concrete type.
+
+Calling a method on an interface value executes the method of the same name on its underlying type.
+
+#### Interface values with nil underlying values
+If the concrete value inside the interface itself is nil, the method will be called with a nil receiver.
+
+```go
+func (t *T) M() {
+	if t == nil {
+		fmt.Println("<nil>")
+		return
+	}
+	fmt.Println(t.S)
+}
+```
+
+#### Nil interface values
+A nil interface value holds neither value nor concrete type.
+
+Calling a method on a nil interface is a run-time error because there is no type inside the interface tuple to indicate which concrete method to call.
+
+### Type assertions
+
+provide access to an interface value's underlying concrete value
+`t := i.(T)`
+This statement assets that the interface value `i` holds the concrete type `T` and assigns the underlying `T` value to the variable `t`.
+
+If it is false, it will trigger a panic
+
+```go
+func main() {
+	var i interface{} = "hello"
+
+	s := i.(string)
+	fmt.Println(s)
+
+	s, ok := i.(string)
+	fmt.Println(s, ok)
+
+	f, ok := i.(float64)
+	fmt.Println(f, ok)
+
+	f = i.(float64) // panic
+	fmt.Println(f)
+}
+```
+
+### Type switches
+A construct that permits several type assertions in series
+```go
+func do(i interface{}) {
+	switch v := i.(type) {
+	case int:
+		fmt.Printf("Twice %v is %v\n", v, v*2)
+	case string:
+		fmt.Printf("%q is %v bytes long\n", v, len(v))
+	default:
+		fmt.Printf("I don't know about type %T!\n", v)
+	}
+}
+```
+
+### Stringer
+```go
+type Stringer interface {
+    String() string
+}
+```
+A Stringer is a type that can describe itself as a string. The fmt package (and many others) look for this interface to print values.
+
+#### Exercise: Stringer
+```go
+// TODO: Add a "String() string" method to IPAddr.
+func (ipaddr IPAddr) toString() string {
+	return fmt.Sprintf("%v.%v.%v.%v", ipaddr[0], ipaddr[1], ipaddr[2], ipaddr[3])
+}
+
+func main() {
+	hosts := map[string]IPAddr{
+		"loopback":  {127, 0, 0, 1},
+		"googleDNS": {8, 8, 8, 8},
+	}
+	
+	for name, ip := range hosts {
+		fmt.Printf("%v: %v\n", name, ip)
+	}
+}
+```
+
+### Error
+
+Go programs express error state with error values.
+
+The error type is a built-in interface similar to fmt.Stringer:
+
+```go
+type error interface {
+    Error() string
+}
+```
+
+### Readers
+The io.Reader interface has a Read method:
+
+```go
+func (T) Read(b []byte) (n int, err error)
+```
+
+Read populates the given byte slice with data and returns the number of bytes populated and an error value. It returns an `io.EOF` error when the stream ends.
+
+The example code creates a strings.Reader and consumes its output 8 bytes at a time.
+
+### Images
+
+```go
+package image
+
+type Image interface {
+    ColorModel() color.Model
+    Bounds() Rectangle
+    At(x, y int) color.Color
+}
+```
+
+## Concurrency
+
+### Goroutines
+A goroutine is a lightweight thread managed by the Go runtime.
+
+```go
+go f(x, y, z)
+```
+
+**Goroutines are functions or methods that run concurrently with other functions or methods.** Goroutines can be thought of as light weight threads. The cost of creating a Goroutine is tiny when compared to a thread. Hence its common for Go applications to have thousands of Goroutines running concurrently.
+
+- Goroutines are extremely cheap when compared to threads. They are only a few kb in stack size and the stack can grow and shrink according to needs of the application
+- The Goroutines are multiplexed to fewer number of OS threads. 
+- Goroutines communicate using channels. Channels by design prevent race conditions from happening when accessing shared memory using Goroutines. 
+
+```go
+package main
+
+import (  
+    "fmt"
+    "time"
+)
+
+func hello() {  
+    fmt.Println("Hello world goroutine")
+}
+func main() {  
+    go hello()
+    time.Sleep(1 * time.Second) // wait for other Goroutines to finish their executions 
+    fmt.Println("main function")
+}
+```
+Multiple Goroutines
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func numbers() {
+	for i := 1; i <= 5; i++ {
+		time.Sleep(250 * time.Millisecond)
+		fmt.Printf("%d ", i)
+	}
+}
+func alphabets() {
+	for i := 'a'; i <= 'e'; i++ {
+		time.Sleep(400 * time.Millisecond)
+		fmt.Printf("%c ", i)
+	}
+}
+func main() {
+	go numbers()
+	go alphabets()
+	time.Sleep(3000 * time.Millisecond)
+	fmt.Println("main terminated")
+}
+```
+
+### Channels
+Channels are a typed conduit through which you can send and receive values with the channel operator, <-.
+
+```go
+ch <- v    // Send v to channel ch.
+v := <-ch  // Receive from ch, and
+           // assign value to v.
+```
+Like maps and slices, channels must be created before use:
+
+```go
+ch := make(chan int)
+```
+
+By default, sends and receives block until the other side is ready. This allows goroutines to synchronize without explicit locks or condition variables.
+
+```go
+func sum(s []int, c chan int) {
+	sum := 0
+	for _, v := range s {
+		sum += v
+	}
+	c <- sum // send sum to c
+}
+
+func main() {
+	s := []int{7, 2, 8, -9, 4, 0}
+
+	c := make(chan int)
+	go sum(s[:len(s)/2], c)
+	go sum(s[len(s)/2:], c)
+	x, y := <-c, <-c // receive from c
+
+	fmt.Println(x, y, x+y)
+}
+```
+
+#### Range and close
+A sender can close a channel to indicate that no more values will be sent. Receivers can test whether a channel has been closed by assigning a second parameter to the receive expression: after
+
+```go
+v, ok := <-ch
+```
+
+ok is `false` if there are no more values to receive and the channel is closed.
+
+The loop for `i := range c` receives values from the channel repeatedly until it is closed.
+
+### Select
+The select statement lets a goroutine wait on multiple communication operations.
+
+A select blocks until one of its cases can run, then it executes that case. It chooses one at random if multiple are ready.
+
+```go
+func fibonacci(c, quit chan int) {
+	x, y := 0, 1
+	for {
+		select {
+		case c <- x:
+			x, y = y, x+y
+		case <-quit:
+			fmt.Println("quit")
+			return
+		}
+	}
+}
+
+func main() {
+	c := make(chan int)
+	quit := make(chan int)
+	go func() {
+		for i := 0; i < 10; i++ {
+			fmt.Println(<-c)
+		}
+		quit <- 0
+	}()
+	fibonacci(c, quit)
+}
+```
+
+### Default Selection
+```go
+
+func main() {
+	tick := time.Tick(100 * time.Millisecond)
+	boom := time.After(500 * time.Millisecond)
+	for {
+		select {
+		case <-tick:
+			fmt.Println("tick.")
+		case <-boom:
+			fmt.Println("BOOM!")
+			return
+		default:
+			fmt.Println("    .")
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+}
+```
